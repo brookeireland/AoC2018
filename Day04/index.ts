@@ -19,34 +19,20 @@ const ex1 = `
 [1518-11-05 00:45] falls asleep
 [1518-11-05 00:55] wakes up
 `;
-const ex2 = `
-`;
+
 const file = readFileSync(`${__dirname}/input.txt`, "utf8");
 
-//test("SolveA-ex1", SolveA, ex1, 240);
-// test("SolveA-ex2", SolveB, ex2, null);
-test("SolveA-file", SolveA, file, null); //63153 too high
+test("SolveA-ex1", SolveA, ex1, 240);
+//test("SolveA-file", SolveA, file, null); //63153 too high
 
-// test("SolveB-ex1", SolveB, ex1, null);
-// test("SolveB-ex2", SolveB, ex2, null);
-// test("SolveB-file", SolveB, file, null);
+test("SolveB-ex1", SolveB, ex1, 4455);
+test("SolveB-file", SolveB, file, null);
 
 function SolveA(input: string) {
   let lines = input.trim().split(/\r?\n/);
   lines.sort();
 
-  let records = lines.map((ln) => {
-    //match anything in the square brackets and all text after
-    let y = ln.match(/\[([^\]]+)\] (.+)/)!;
-    let date = new Date(y![1]);
-    let msg = y[2];
-    //match the guard number
-    let id = msg.match(/#(\d+)/)?.[1];
-    let asleep = msg === "falls asleep";
-    let awake = msg === "wakes up";
-    return { date, id, asleep, awake };
-  });
-
+  let records = initializeRecords(lines);
   //If I didn't sort lines above
   //records.sort((a, b) => a.date.getTime() - b.date.getTime());
 
@@ -58,6 +44,20 @@ function SolveA(input: string) {
   setMinutesAsleep(records, sleepiestGuard, minutesAsleep);
 
   return Number(sleepiestGuard) * Number(getMaxOfMap(minutesAsleep));
+}
+
+function initializeRecords(lines: string[]) {
+  return lines.map((ln) => {
+    //match anything in the square brackets and all text after
+    let y = ln.match(/\[([^\]]+)\] (.+)/)!;
+    let date = new Date(y![1]);
+    let msg = y[2];
+    //match the guard number
+    let id = msg.match(/#(\d+)/)?.[1];
+    let asleep = msg === "falls asleep";
+    let awake = msg === "wakes up";
+    return { date, id, asleep, awake };
+  });
 }
 
 function getMaxOfMap(map: Map<string | number, number>) {
@@ -112,6 +112,15 @@ function initializeMinutesAsleep() {
   return minutesAsleep;
 }
 
+function initializeSleepiestMinutes(ids: string[]) {
+  let sleepiestMinute = new Map<string, number>();
+
+  for (let id of ids) {
+    sleepiestMinute.set(id, 0);
+  }
+  return sleepiestMinute;
+}
+
 function setTimeAsleep(
   records: {
     date: Date;
@@ -155,9 +164,57 @@ function setMinutesAsleep(
   }
 }
 
+function setSleepiestMinutes(
+  sleepiestMinutes: Map<string, number>,
+  guardIds: string[],
+  records: {
+    date: Date;
+    id: string | undefined;
+    asleep: boolean;
+    awake: boolean;
+  }[]
+) {
+  let maxMinutes = { minutes: 0, guardId: "" };
+  guardIds.map((id) => {
+    let minutesAsleep = initializeMinutesAsleep();
+    setMinutesAsleep(records, id, minutesAsleep);
+    let maxMinuteOfSleep = Number(getMaxOfMap(minutesAsleep));
+    let x = minutesAsleep.get(maxMinuteOfSleep);
+    if (x && x > maxMinutes.minutes) {
+      maxMinutes = { minutes: x, guardId: id };
+    }
+    sleepiestMinutes.set(id, Number(getMaxOfMap(minutesAsleep)));
+  });
+  return maxMinutes;
+}
+
+function getGuardIds(
+  records: {
+    id: string | undefined;
+  }[]
+) {
+  let ids: string[] = [];
+  for (let ln of records) {
+    if (ln.id && !ids.includes(ln.id)) {
+      ids.push(ln.id);
+    }
+  }
+  return ids;
+}
+
 function SolveB(input: string) {
   let lines = input.trim().split(/\r?\n/);
-  return lines.length;
+  lines.sort();
+
+  let records = initializeRecords(lines);
+  let guardIds = getGuardIds(records);
+  let sleepiestMinutes = initializeSleepiestMinutes(guardIds);
+
+  updateIds(records);
+
+  let maxMinutes = setSleepiestMinutes(sleepiestMinutes, guardIds, records);
+
+  return Number(maxMinutes.guardId) * sleepiestMinutes.get(maxMinutes.guardId)!;
 }
 
 function test(
