@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import chalk from "chalk";
 
 const ex1 = `
 `;
@@ -30,6 +31,15 @@ function test(
   input: string,
   expected: number | string | null
 ) {
+  let fence = "-".repeat(20);
+  console.log(chalk.rgb(255, 192, 192)(fence + name + fence));
   const actual = fn(input);
-  console.log({ name, actual, expected, success: actual === expected });
+
+  console.log({ actual, expected });
+  if (actual === expected) {
+    console.log(chalk.green(name, "success!"));
+  } else {
+    console.log(chalk.red(name, "fail :("));
+    process.exit(1);
+  }
 }
