@@ -1,8 +1,9 @@
 import chalk from "chalk";
+type AocFunction = (input: string) => unknown;
 
 export function aocTest(
   name: string,
-  fn: Function,
+  fn: AocFunction,
   input: string,
   expected: number | string | null
 ) {

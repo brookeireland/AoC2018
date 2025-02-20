@@ -15,36 +15,12 @@ const file = readFileSync(`${__dirname}/input.txt`, "utf8");
 aocTest("SolveA-ex1", SolveA, ex1, "CABDFE");
 // aocTest("SolveA-file", SolveA, file, null);
 
-// aocTest("SolveB-ex1", (input) => SolveB(input, 2, 0), ex1, 15);
+aocTest("SolveB-ex1", (input) => SolveB(input, 2, 0), ex1, 15);
 // aocTest("SolveB-file", (input) => SolveB(input, 5, 60), file, null);
 
 function SolveA(input: string) {
   let lines = input.trim().split(/\r?\n/);
-
-  let map = new Map<string, string[]>();
-
-  for (let ln of lines) {
-    // const m = Array.from(ln.matchAll(/step (.)/gi));
-    // const steps = m.map((step) => step[1]);
-
-    // const m = [...ln.matchAll(/step (.)/gi)];
-    // const steps = m.map((step) => step[1]);
-
-    const [prereq, key] = Array.from(
-      ln.matchAll(/step (.)/gi),
-      (step) => step[1]
-    );
-
-    let arr = map.get(key) ?? [];
-    arr.push(prereq);
-    map.set(key, arr);
-
-    if (!map.has(prereq)) {
-      map.set(prereq, []);
-    }
-  }
-
-  map = sortMap(map);
+  const map = parseLines(lines);
   let result = "";
   let currKey = "";
 
@@ -68,14 +44,62 @@ function SolveA(input: string) {
   return result;
 }
 
-function SolveB(input: string, workers: number, seconds: number) {
-  //COMMENT FOR DANNY
+function SolveB(input: string, workerLimit: number, seconds: number) {
   //refactor using promises
-  //extract code into funcs for readability
   //add logging utility
 
   let lines = input.trim().split(/\r?\n/);
+  const map = parseLines(lines);
+  type Worker = { step: string; time: number };
+  let timeSpent = 0;
+  const workers: Worker[] = [];
 
+  while (map.size !== 0 || workers.length !== 0) {
+    const readySteps = getReadySteps(map);
+    //assign worker to step
+    for (let step of readySteps) {
+      if (workers.length < workerLimit) {
+        workers.push({ step, time: seconds + (step.charCodeAt(0) - 64) });
+        map.delete(step);
+      }
+    }
+
+    // advance time
+    timeSpent++;
+    for (let w of workers) {
+      w.time--;
+    }
+
+    const idleWorkers = workers.filter((w) => w.time <= 0);
+
+    //remove step pre reqs
+    for (let w of idleWorkers) {
+      for (let [key, value] of map.entries()) {
+        if (value.includes(w.step)) {
+          value.splice(value.indexOf(w.step), 1);
+        }
+      }
+    }
+
+    //remove worker
+    for (let w of idleWorkers) {
+      workers.splice(workers.indexOf(w), 1);
+    }
+  }
+
+  return timeSpent;
+}
+
+function getReadySteps(map: Map<string, string[]>): string[] {
+  return Array.from(
+    map
+      .entries()
+      .filter((x) => x[1].length <= 0)
+      .map((x) => x[0])
+  );
+}
+
+function parseLines(lines: string[]) {
   let map = new Map<string, string[]>();
 
   for (let ln of lines) {
@@ -93,60 +117,7 @@ function SolveB(input: string, workers: number, seconds: number) {
     }
   }
 
-  map = sortMap(map);
-
-  type Worker = [string, number];
-  let timeSpent = 0;
-  const workersArray: Worker[] = [];
-
-  // let iterationCount = 100;
-  while (map.size !== 0 || workersArray.length !== 0) {
-    // if (--iterationCount <= 0) break;
-    // const beforeMap = structuredClone(map);
-
-    if (workersArray.length < workers) {
-      for (let [key, value] of map.entries()) {
-        if (value.length <= 0) {
-          if (workersArray.length < workers) {
-            workersArray.push([key, seconds + (key.charCodeAt(0) - 64)]);
-            map.delete(key); //cleanup
-
-            // console.log("add worker", key, timeSpent);
-          }
-        }
-      }
-    }
-    let deletions: Worker[] = [];
-    timeSpent++;
-    for (let w of workersArray) {
-      w[1]--;
-      // console.log("decrease time", w, timeSpent);
-      if (w[1] <= 0) {
-        for (let [key, value] of map.entries()) {
-          if (value.includes(w[0])) {
-            value.splice(value.indexOf(w[0]), 1);
-          }
-        }
-        deletions.push(w);
-      }
-    }
-    for (let w of deletions) {
-      workersArray.splice(workersArray.indexOf(w), 1);
-      // console.log("pop worker", w[0], timeSpent);
-    }
-
-    // console.log({ beforeMap, map, currKey, workersArray });
-  }
-
-  //each second is one iteration of a loop
-  //which goes first
-  //assign to a worker with a time (60+#)
-  //if theres another worker get the next one
-  //else wait
-
-  //worker: id, step
-
-  return timeSpent;
+  return sortMap(map);
 }
 
 function sortMap(graph: ReadonlyMap<string, string[]>): Map<string, string[]> {
